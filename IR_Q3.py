@@ -77,8 +77,8 @@ def tokenize_sentence(sentence):
     final_sentence = re.sub(r"!|@|#|$|%|^|&|:|;|'|<|>|/|-|=", "", sentence_strip_numbers)
 
     split_sentence = re.split('\s+', final_sentence)
-    new_sentence = [word_tokenize(word) for word in split_sentence]
-    return new_sentence
+    # new_sentence = [word_tokenize(word) for word in split_sentence]
+    return split_sentence
 
 
 def find_rated_books(uid):
@@ -142,36 +142,6 @@ if __name__ == "__main__":
 
 
 
-
-
-    # Making the model for this sentence
-    # model = Word2Vec(tokenized_sentence, min_count=1)
-    # tensorflow_model = keras.Sequential()
-    # tensorflow_model.add(layers.Dense(23, activation="relu"))
-    # tensorflow_model.add(layers.Dense(4, activation="relu"))
-    # tensorflow_model.add(layers.Dense(1, activation="relu"))
-    #
-    # print(tensorflow_model)
-    # print(tensorflow_model.layers[0].weights)
-
-
-    # words = list(model.wv.index_to_key)
-    # print(words, "\n")
-    #
-    #
-    # # Word vectors
-    # word_vectors = model.wv.vectors
-    # # print(word_vectors)
-    #
-    # #Visualising
-    # X = model.wv[model.wv.index_to_key]
-    # pca = PCA(n_components=2)
-    # result = pca.fit_transform(X)
-    # pyplot.scatter(result[:, 0], result[:, 1])
-    #
-    # for i, word in enumerate(words):
-    #     pyplot.annotate(word, xy=(result[i, 0], result[i, 1]))
-    # pyplot.show()
 
 
 

@@ -1,5 +1,8 @@
 
+import re
 from elasticsearch import Elasticsearch
+import pandas as pd
+from pyparsing import col
 elasticsearch = Elasticsearch(host="localhost", port=9200)
 
 
@@ -22,7 +25,7 @@ def basic_search(field, value):
     try:
         res = elasticsearch.search(index="bx-books", from_=0, size=10000, query={
             "match": {
-              f"{field}": f"{value}"
+                f"{field}": f"{value}"
             }},
             sort=[
                 {
@@ -30,7 +33,7 @@ def basic_search(field, value):
                         "order": "desc"
                     }
                 }
-            ]
+        ]
         )
     except:
         print("There has been an error in retrieving the data!")
@@ -43,25 +46,25 @@ def basic_search(field, value):
     return res
 
 
-# Finds the rating that a specific uid has given to a book of specific isbn returning it as an integer, if it doesnt find any rating then it returns None
+# Finds the rating that a specific uid has given to a book of specific isbn returning it as an integer, if it doesn't find any rating then it returns None
 def user_rating_search(uid, isbn):
     try:
         res = elasticsearch.search(index="bx-book-ratings", query={
             "bool": {
-              "must": [
-                {"match": {
-                  "isbn": f"{isbn}"
-                  }
-                },
-                {
-                  "match": {
-                    "uid": f"{uid}"
-                  }
-                }
+                "must": [
+                    {"match": {
+                        "isbn": f"{isbn}"
+                    }
+                    },
+                    {
+                        "match": {
+                            "uid": f"{uid}"
+                        }
+                    }
 
-              ]
+                ]
             }
-          })
+        })
     except:
         print("There has been an error in retrieving the data!")
 
@@ -72,7 +75,7 @@ def user_rating_search(uid, isbn):
         return float(hit_rating)
 
 
-#Calculates the average rating given to a book, note that we don't use the specified users rating in this calculation
+# Calculates the average rating given to a book, note that we don't use the specified users rating in this calculation
 def calculate_all_user_ratings(uid, isbn):
     total_rating = 0
     counter = 0
@@ -105,29 +108,29 @@ def calculate_all_user_ratings(uid, isbn):
     return float(average_rating)
 
 
-#This is only for the re-indexed data, it finds the average of the score given to a book by other customers but not our customer.
-def all_user_ratings_search(uid, isbn):
+# This is only for the re-indexed data, it finds the average of the score given to a book by other customers but not our customer.
+# def all_user_ratings_search(uid, isbn):
 
     try:
         res = elasticsearch.search(index="bx-book-ratings-reindex", query={
             "bool": {
-              "must": [
-                {"match": {"isbn": f"{isbn}"}}
-              ],
-              "must_not": [
-                {"match": {
-                  "uid": f"{uid}"
-                }}
-              ]
+                "must": [
+                    {"match": {"isbn": f"{isbn}"}}
+                ],
+                "must_not": [
+                    {"match": {
+                        "uid": f"{uid}"
+                    }}
+                ]
             }
-          },
-          aggs={
+        },
+            aggs={
             "avg_rating": {
-              "avg": {
-                "field": "rating"
-              }
+                "avg": {
+                    "field": "rating"
+                }
             }
-          })
+        })
     except:
         print("There has been an error in retrieving the data!")
 
@@ -135,7 +138,8 @@ def all_user_ratings_search(uid, isbn):
         print("No data has been returned!")
         return
     else:
-        print(res["hits"]["total"]["value"], "document/s has/have been received!")
+        print(res["hits"]["total"]["value"],
+              "document/s has/have been received!")
 
     # for hit in res["hits"]["hits"]:
     #     print("Document info -->", hit["_source"])
@@ -144,6 +148,8 @@ def all_user_ratings_search(uid, isbn):
 
 
 if __name__ == "__main__":
+    resulting_df = pd.DataFrame(columns=[
+                                'Book_Isbn', 'Elastics_Score', 'Specified_Users_Rating', 'Average_Rating', 'Final_Score'])
 
     print("Searching on index: bx-books.")
     print("You can search any field and value. Program ends with user_id input 'END'\n")
@@ -157,18 +163,34 @@ if __name__ == "__main__":
         value = input("Give me a value: ")
         results = basic_search(field, value)
 
-        print("Total hits -> {}".format(results["hits"]["total"]["value"]))
-        print("For user -> {}".format(user_id))
-        for result in results["hits"]["hits"]:
-            elastics_score = result["_score"]
-            specified_users_score = user_rating_search(user_id, result["_source"]["isbn"])
-            average_rating = calculate_all_user_ratings(user_id, result["_source"]["isbn"])
-            final_score = new_metric(elastics_score, average_rating, specified_users_score)
-            print("Book_isbn -> {}\t\t\t Elastics_Score -> {:.2f}\t\t\t Specified_Users_Rating -> {}\t\t\t Average_Rating -> {}\t\t\t Final_Score -> {:.2f}".format(result["_source"]["isbn"], elastics_score, specified_users_score, average_rating, final_score))
+        if (results["hits"]["total"]["value"] == 0):
+            print("No data has been returned!")
+        else:
+            print("Total hits -> {}".format(results["hits"]["total"]["value"]))
+            print("For user -> {}".format(user_id))
 
+            for result in results["hits"]["hits"]:
 
+                elastics_score = result["_score"]
 
+                specified_users_score = user_rating_search(
+                    user_id, result["_source"]["isbn"])
 
+                average_rating = calculate_all_user_ratings(
+                    user_id, result["_source"]["isbn"])
 
+                final_score = new_metric(
+                    elastics_score, average_rating, specified_users_score)
 
+                book_isbn = result["_source"]["isbn"]
 
+                resulting_df.loc[len(resulting_df.index)] = [
+                    book_isbn, elastics_score, specified_users_score, average_rating, final_score]
+            resulting_df = resulting_df.sort_values(
+                'Final_Score', ascending=False)
+            resulting_df = resulting_df[resulting_df.columns[::-1]]
+            print(resulting_df.head(15))
+            # print("\nBook_isbn -> {}\t\t Elastics_Score -> {:.2f}\t\t Specified_Users_Rating -> {}\t\t Average_Rating -> {}\t\t Final_Score -> {:.2f}".format(
+            #     result["_source"]["isbn"], elastics_score, specified_users_score, average_rating, final_score))
+
+            # Gina Bari Kolata

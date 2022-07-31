@@ -7,7 +7,7 @@ def basic_search(field, value):
     try:
         res = elasticsearch.search(index="bx-books", query={
             "match": {
-              f"{field}": f"{value}"
+                f"{field}": f"{value}"
             }},
             sort=[
                 {
@@ -15,7 +15,7 @@ def basic_search(field, value):
                         "order": "desc"
                     }
                 }
-            ]
+        ]
         )
     except:
         print("Error occurred!")
@@ -28,10 +28,10 @@ def basic_search(field, value):
     print("\nShowing the first 10 answers.\n")
 
     for hit in res["hits"]["hits"]:
-        print("Elastics score:", hit["_score"], "--- Isbn:", hit["_source"]["isbn"], "---", f"{field}:",  hit["_source"][f"{field}"])
+        print("Elastics score:", hit["_score"], "--- Isbn:", hit["_source"]
+              ["isbn"], "---", f"{field}:",  hit["_source"][f"{field}"])
 
     print("\nTotal hits -> {}\n".format(res["hits"]["total"]["value"]))
-
 
 
 if __name__ == "__main__":
