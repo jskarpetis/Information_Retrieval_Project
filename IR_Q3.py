@@ -194,6 +194,7 @@ def personalized_network(user_id, vocab_size):
     padded_data = pad_sequences(
         encoded_data, maxlen=max_len, padding='post')
     # Now we are ready to do embedding layer
+    print(padded_data)
     model = Sequential()
     model.add(Embedding(vocab_size, 32, input_length=max_len))
     model.add(Flatten())

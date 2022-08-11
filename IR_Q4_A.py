@@ -1,4 +1,5 @@
 from elasticsearch import Elasticsearch
+from elasticsearch.helpers import scan
 import random
 from tqdm import trange
 import pandas as pd
@@ -7,18 +8,15 @@ import re
 
 from keras.preprocessing.text import one_hot
 from keras.preprocessing.sequence import pad_sequences
-# from tensorflow.keras.preprocessing import text_dataset_from_directory
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import Flatten
-from keras.layers.embeddings import Embedding
+
 elasticsearch = Elasticsearch(host="localhost", port=9200)
 
 
 def all_book_search():
     try:
         res = elasticsearch.search(index="bx-books", query={
-            "match_all": {}}, track_total_hits=True)
+            "match_all": {},
+        }, size=100, scroll='1m')
         # track_total_hits brings all the data back, bad practice i believe, scroll api better but this is easier
     except:
         print("There has been an error in retrieving the data!")
@@ -91,12 +89,12 @@ def k_means(n_clusters, dataset, epochs, is_3d=False):
 def pre_process_summary(summary, vocab_size, max_len):
     tokenized_sentence = str(tokenize_sentence(summary))
 
-    print(tokenized_sentence, '\n')
+    # print(tokenized_sentence, '\n')
     encoded_data = [one_hot(tokenized_sentence, vocab_size)]
-    print(encoded_data, "\n")
+    # print(encoded_data, "\n")
     padded_data = pad_sequences(
         encoded_data, maxlen=max_len, padding='post')
-    print(padded_data, "\n")
+    # print(padded_data, "\n")
     return padded_data
 
 
@@ -118,19 +116,49 @@ def tokenize_sentence(sentence):
 
 
 if __name__ == "__main__":
-    vocab_size = 10000
-    dataset = []
-    all_books = all_book_search()
-    print(len(all_books))
-    max_summary_len = 0
-    count = 0
-    for hit in all_books["hits"]["hits"]:
-        count += 1
-        summary = hit["_source"]["summary"]
-        if (len(tokenize_sentence(summary)) > max_summary_len):
-            max_summary_len = len(tokenize_sentence(summary))
+    batch_count = 0
+    vocab_size = 50000
+    max_summary_length = 0
+    all_books_response = all_book_search()
 
-        dataset.append(pre_process_summary(
-            summary, vocab_size=vocab_size, max_len=max_summary_len))
-    print(len(dataset))
-    print(count)
+    scroll_dataset = {}
+
+    old_scroll_id = all_books_response['_scroll_id']
+    results = all_books_response['hits']['hits']
+
+    while len(results):
+        print('Batch with No --> {}'.format(batch_count))
+        for i, r in enumerate(results):
+            # Minor preprocessing
+            book_summary = r['_source']['summary']
+            tokenized_summary = tokenize_sentence(book_summary)
+
+            # Storing the book_isbn(key) and summary(value) to a dictionary
+            scroll_dataset[r['_source']['isbn']] = tokenized_summary
+
+            # Finding max len to use at the conversion of the words to embeddings
+            if (max_summary_length < len(tokenized_summary)):
+                max_summary_length = len(tokenized_summary)
+
+        # Finding the next batch of data
+        result = elasticsearch.scroll(scroll_id=old_scroll_id, scroll='1m')
+
+        # Storing the new scroll_id to use
+        if old_scroll_id != result['_scroll_id']:
+            old_scroll_id = result['_scroll_id']
+
+        # Storing the next batch of data to results
+        results = result['hits']['hits']
+        batch_count += 1
+
+    print('################################################################################################## ONE HOT ENCODE ##################################################################################################')
+    for key in scroll_dataset.keys():
+        one_hot_encoded_summary = pre_process_summary(
+            summary=str(scroll_dataset[key]), vocab_size=vocab_size, max_len=max_summary_length)
+
+        scroll_dataset[key] = one_hot_encoded_summary[0].tolist()
+
+        # print('Length of sentence -> {}\t\tLength of encoded sentence -> {}'.format(
+        #     len(scroll_dataset[key]), len(one_hot_encoded_summary[0].tolist())))
+
+    # Data is now ready to be clustered
