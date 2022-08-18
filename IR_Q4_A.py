@@ -1,7 +1,9 @@
 from elasticsearch import Elasticsearch
-from elasticsearch.helpers import scan
-import random
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from operator import indexOf
 from tqdm import trange
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import re
@@ -28,19 +30,30 @@ def all_book_search():
     return res
 
 
-def k_means(n_clusters, dataset, epochs, is_3d=False):
-    n = len(dataset)
+def plot_data(arrays, pair_list=False, centroids=False, centroid_list=None):
+    if (pair_list):
+        for matrix in arrays:
+            xs = [x[0] for x in matrix]
+            ys = [x[1] for x in matrix]
+            plt.scatter(xs, ys, label=f"{indexOf(arrays, matrix)} cluster")
+            if (centroids):
+                xs = [x[0] for x in centroid_list]
+                ys = [x[1] for x in centroid_list]
+                plt.scatter(xs, ys, s=80, color='Black')
+        plt.legend(loc='best')
+        plt.show()
+
+
+def k_means(n_clusters, dataset, epochs):
+
     centroids = {}
     clusters = {}
     variance_array = []
 
     # Initial clusters
     for cluster in range(n_clusters):
-        if (is_3d is False):
-            centroids[cluster] = [random.uniform(-3, 3), random.uniform(-3, 3)]
-        else:
-            centroids[cluster] = [
-                random.uniform(-3, 3), random.uniform(-3, 3), random.uniform(0, 3)]
+        centroids[cluster] = np.random.randint(
+            0, 100000, np.shape(dataset[0]))
 
     # print(centroids)
     ### Algorithm to minimize the total_variance###
@@ -48,22 +61,23 @@ def k_means(n_clusters, dataset, epochs, is_3d=False):
         for cluster_id in range(n_clusters):
             clusters[cluster_id] = []
         total_variance = 0
-        for point in dataset:
+        for vector in dataset:
             # print("\nData point --> {}\n".format(point))
-            stored_norms = []
+            stored_cosine_similarity_scores = []
 
             for cluster_id in centroids:
                 centroid_coord = centroids[cluster_id]
-                norm_squared = np.linalg.norm(
-                    np.subtract(point, centroid_coord))**2
+                cosine_similarity = np.dot(
+                    vector, centroid_coord) / (np.linalg.norm(vector) * np.linalg.norm(centroid_coord))
                 # print('Norm squared --> {}'.format(norm_squared))
-                stored_norms.append(norm_squared)
+                stored_cosine_similarity_scores.append(cosine_similarity)
 
-            minimum_norm_index = np.argmin(stored_norms)
+            minimum_norm_index = np.argmin(stored_cosine_similarity_scores)
             # print(minimum_norm_index)
 
-            clusters[minimum_norm_index].append(point.tolist())
-            total_variance += stored_norms[minimum_norm_index]
+            clusters[minimum_norm_index].append(vector)
+            total_variance += abs(
+                stored_cosine_similarity_scores[minimum_norm_index])
             # print(total_variance)
 
         for cluster_id in centroids:
@@ -71,13 +85,10 @@ def k_means(n_clusters, dataset, epochs, is_3d=False):
                 continue
             cluster_data = clusters[cluster_id]
 
-            if (is_3d is False):
-                best_centroid = np.zeros(shape=(2,))
-            else:
-                best_centroid = np.zeros(shape=(3,))
+            best_centroid = np.zeros(shape=(np.shape(dataset[0])))
 
-            for point in cluster_data:
-                best_centroid = np.add(best_centroid, point)
+            for vector in cluster_data:
+                best_centroid = np.add(best_centroid, vector)
             best_centroid = np.divide(best_centroid, len(cluster_data))
             centroids[cluster_id] = best_centroid.tolist()
 
@@ -115,9 +126,31 @@ def tokenize_sentence(sentence):
     return split_sentence
 
 
+def pca_data(n_components, data):
+
+    for cluster_id in data.keys():
+        scaled_data = StandardScaler().fit_transform(data[cluster_id])
+        pca = PCA(n_components=n_components)
+        principal_components = pca.fit_transform(scaled_data)
+        data[cluster_id] = principal_components
+    return data
+
+
+def pca_centroids(n_components, centroids):
+
+    for cluster_id in centroids.keys():
+        temp_data = [centroids[cluster_id]]
+        print(temp_data)
+        scaled_data = StandardScaler().fit_transform(temp_data)
+        pca = PCA(n_components=n_components)
+        principal_components = pca.fit_transform(scaled_data)
+        centroids[cluster_id] = principal_components
+    return centroids
+
+
 if __name__ == "__main__":
     batch_count = 0
-    vocab_size = 50000
+    vocab_size = 100000
     max_summary_length = 0
     all_books_response = all_book_search()
 
@@ -127,7 +160,7 @@ if __name__ == "__main__":
     results = all_books_response['hits']['hits']
 
     while len(results):
-        print('Batch with No --> {}'.format(batch_count))
+        # print('Batch with No --> {}'.format(batch_count))
         for i, r in enumerate(results):
             # Minor preprocessing
             book_summary = r['_source']['summary']
@@ -150,6 +183,7 @@ if __name__ == "__main__":
         # Storing the next batch of data to results
         results = result['hits']['hits']
         batch_count += 1
+        break
 
     print('################################################################################################## ONE HOT ENCODE ##################################################################################################')
     for key in scroll_dataset.keys():
@@ -160,5 +194,15 @@ if __name__ == "__main__":
 
         # print('Length of sentence -> {}\t\tLength of encoded sentence -> {}'.format(
         #     len(scroll_dataset[key]), len(one_hot_encoded_summary[0].tolist())))
+
+    dataset_clustering = list(scroll_dataset.values())
+
+    variance_array, clusters, centroids = k_means(30, dataset_clustering, 150)
+    # print(variance_array, "\n", list(centroids.values()))
+
+    # print(clusters)
+
+    for key in clusters.keys():
+        print(clusters[key], '\n')
 
     # Data is now ready to be clustered

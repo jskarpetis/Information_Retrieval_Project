@@ -256,7 +256,7 @@ if __name__ == "__main__":
                 if not specified_users_score:
                     summary = result["_source"]["summary"]
                     padded_data = pre_model_processing(summary, max_len)
-                    print(padded_data)
+                    # print(padded_data)
                     prediction = model.predict(padded_data, verbose=1)
                     specified_users_score = prediction[0][0] * 10
 
@@ -269,8 +269,11 @@ if __name__ == "__main__":
                 book_isbn = result["_source"]["isbn"]
 
                 resulting_df.loc[len(resulting_df.index)] = [
-                    book_isbn, elastics_score, specified_users_score, average_rating, final_score]
+                    book_isbn, float(elastics_score), float(specified_users_score), float(average_rating), float(final_score)]
+
             resulting_df = resulting_df.sort_values(
                 'Final_Score', ascending=False)
+
             resulting_df = resulting_df[resulting_df.columns[::-1]]
+
             print(resulting_df.head(15))
