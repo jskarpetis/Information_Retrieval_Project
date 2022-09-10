@@ -1,9 +1,9 @@
+import numpy as np
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import normalize
 from elasticsearch import Elasticsearch
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import normalize
-from sklearn.feature_extraction.text import TfidfVectorizer
-import pandas as pd
-import numpy as np
 
 
 elasticsearch = Elasticsearch(host="localhost", port=9200)
@@ -57,6 +57,7 @@ if __name__ == "__main__":
     td_vectorizer = TfidfVectorizer(stop_words='english')
 
     all_summaries = dataframe['summary']
+    print(all_summaries)
     features = td_vectorizer.fit_transform(all_summaries)
     k = 30
     model = KMeans(n_clusters=k, init='k-means++',

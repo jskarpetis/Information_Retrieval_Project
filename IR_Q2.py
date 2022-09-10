@@ -3,20 +3,23 @@ import re
 from elasticsearch import Elasticsearch
 import pandas as pd
 from pyparsing import col
-elasticsearch = Elasticsearch(host="localhost", port=9200)
+elasticsearch = Elasticsearch(hosts="localhost", port=9200)
 
 
 # Question 2
 def new_metric(elastics_score, average_rating, user_rating):
 
     if user_rating is not None and average_rating is not None:
-        final_score = (elastics_score + 2*user_rating + average_rating)/3
+        final_score = elastics_score + 2*user_rating + average_rating
+
     elif user_rating is None and average_rating is None:
         final_score = elastics_score
+
     elif user_rating is not None and average_rating is None:
-        final_score = (elastics_score + 2*user_rating)/2
+        final_score = elastics_score + 2*user_rating
+
     elif user_rating is None and average_rating is not None:
-        final_score = (elastics_score + average_rating)/2
+        final_score = elastics_score + average_rating
 
     return final_score
 
@@ -108,45 +111,6 @@ def calculate_all_user_ratings(uid, isbn):
     return float(average_rating)
 
 
-# This is only for the re-indexed data, it finds the average of the score given to a book by other customers but not our customer.
-# def all_user_ratings_search(uid, isbn):
-
-    try:
-        res = elasticsearch.search(index="bx-book-ratings-reindex", query={
-            "bool": {
-                "must": [
-                    {"match": {"isbn": f"{isbn}"}}
-                ],
-                "must_not": [
-                    {"match": {
-                        "uid": f"{uid}"
-                    }}
-                ]
-            }
-        },
-            aggs={
-            "avg_rating": {
-                "avg": {
-                    "field": "rating"
-                }
-            }
-        })
-    except:
-        print("There has been an error in retrieving the data!")
-
-    if (res["hits"]["total"]["value"] == 0):
-        print("No data has been returned!")
-        return
-    else:
-        print(res["hits"]["total"]["value"],
-              "document/s has/have been received!")
-
-    # for hit in res["hits"]["hits"]:
-    #     print("Document info -->", hit["_source"])
-
-    return res["aggregations"]["avg_rating"]["value"]
-
-
 if __name__ == "__main__":
     resulting_df = pd.DataFrame(columns=[
                                 'Book_Isbn', 'Elastics_Score', 'Specified_Users_Rating', 'Average_Rating', 'Final_Score'])
@@ -155,6 +119,7 @@ if __name__ == "__main__":
     print("You can search any field and value. Program ends with user_id input 'END'\n")
 
     while True:
+        # uid: 168047
         user_id = input("Give me a user_id(uid): ")
         if (user_id == 'END'):
             print("Program exiting.")

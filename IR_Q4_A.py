@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import re
-
+# NOT TO SUBMIT
 from keras.preprocessing.text import one_hot
 from keras.preprocessing.sequence import pad_sequences
 
@@ -111,18 +111,12 @@ def pre_process_summary(summary, vocab_size, max_len):
 
 def tokenize_sentence(sentence):
 
-    sentence_strip_commas = sentence.replace(",", "")
-    sentence_strip_stops = sentence_strip_commas.replace(".", "")
-    sentence_strip_marks = sentence_strip_stops.replace("?", "")
-    sentence_strip_stars = sentence_strip_marks.replace("*", "")
-
-    sentence_strip_numbers = re.sub(r"[0-9]+", "", sentence_strip_stars)
+    sentence_strip_numbers = re.sub(r"[0-9]+", "", sentence)
     final_sentence = re.sub(
-        r"!|@|#|$|%|^|&|:|;|'|<|>|/|-|=", "", sentence_strip_numbers)
+        r"!|@|#|$|%|^|&|:|;|'|<|>|/|-|=|(|)|", "", sentence_strip_numbers)
+    final_sentence = re.sub('[\W\_]', ' ', final_sentence)
 
     split_sentence = re.split('\s+', final_sentence)
-
-    # new_sentence = [word_tokenize(word) for word in split_sentence]
     return split_sentence
 
 

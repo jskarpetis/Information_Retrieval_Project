@@ -1,8 +1,9 @@
 from elasticsearch import Elasticsearch
-elasticsearch = Elasticsearch(host="localhost", port=9200)
-
+elasticsearch = Elasticsearch(hosts="localhost", port=9200)
 
 # Question 1
+
+
 def basic_search(field, value):
     try:
         res = elasticsearch.search(index="bx-books", query={

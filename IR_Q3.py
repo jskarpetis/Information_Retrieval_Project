@@ -16,13 +16,13 @@ elasticsearch = Elasticsearch(host="localhost", port=9200)
 def new_metric(elastics_score, average_rating, user_rating):
 
     if user_rating is not None and average_rating is not None:
-        final_score = (elastics_score + 2*user_rating + average_rating)/3
+        final_score = elastics_score + 2*user_rating + average_rating
     elif user_rating is None and average_rating is None:
         final_score = elastics_score
     elif user_rating is not None and average_rating is None:
-        final_score = (elastics_score + 2*user_rating)/2
+        final_score = elastics_score + 2*user_rating
     elif user_rating is None and average_rating is not None:
-        final_score = (elastics_score + average_rating)/2
+        final_score = elastics_score + average_rating
 
     return final_score
 # Question 3
@@ -83,17 +83,12 @@ def user_rating_search(uid, isbn):
 
 def tokenize_sentence(sentence):
 
-    sentence_strip_commas = sentence.replace(",", "")
-    sentence_strip_stops = sentence_strip_commas.replace(".", "")
-    sentence_strip_marks = sentence_strip_stops.replace("?", "")
-    sentence_strip_stars = sentence_strip_marks.replace("*", "")
-
-    sentence_strip_numbers = re.sub(r"[0-9]+", "", sentence_strip_stars)
+    sentence_strip_numbers = re.sub(r"[0-9]+", "", sentence)
     final_sentence = re.sub(
-        r"!|@|#|$|%|^|&|:|;|'|<|>|/|-|=", "", sentence_strip_numbers)
+        r"!|@|#|$|%|^|&|:|;|'|<|>|/|-|=|(|)|", "", sentence_strip_numbers)
+    final_sentence = re.sub('[\W\_]', ' ', final_sentence)
 
     split_sentence = re.split('\s+', final_sentence)
-    # new_sentence = [word_tokenize(word) for word in split_sentence]
     return split_sentence
 
 
@@ -196,7 +191,8 @@ def personalized_network(user_id, vocab_size):
     # Now we are ready to do embedding layer
     print(padded_data)
     model = Sequential()
-    model.add(Embedding(vocab_size, 32, input_length=max_len))
+    model.add(Embedding(input_dim=vocab_size,
+              output_dim=32, input_length=max_len))
     model.add(Flatten())
     model.add(Dense(100, activation='sigmoid'))
     model.add(Dense(1, activation='sigmoid'))
