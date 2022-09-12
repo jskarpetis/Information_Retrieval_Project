@@ -119,13 +119,15 @@ if __name__ == "__main__":
     print("You can search any field and value. Program ends with user_id input 'END'\n")
 
     while True:
-        # uid: 168047
+        # uid: 253580
         user_id = input("Give me a user_id(uid): ")
         if (user_id == 'END'):
             print("Program exiting.")
             break
         field = input("Give me a field: ")
+        # book_title
         value = input("Give me a value: ")
+        # Fatal Voyage
         results = basic_search(field, value)
 
         if (results["hits"]["total"]["value"] == 0):
